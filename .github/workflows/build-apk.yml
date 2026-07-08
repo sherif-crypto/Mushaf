@@ -27,6 +27,14 @@ jobs:
       - name: Unpack Android project
         run: unzip -q MadinaMushafAnnotator-v0.2.1-cloud-build.zip
 
+      - name: Enable AndroidX
+        run: |
+          printf '%s\n' \
+            'android.useAndroidX=true' \
+            'kotlin.code.style=official' \
+            'org.gradle.jvmargs=-Xmx3072m -Dfile.encoding=UTF-8' \
+            > MadinaMushafAnnotator/gradle.properties
+
       - name: Install Android SDK 35
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
@@ -44,3 +52,4 @@ jobs:
           name: Madina-Mushaf-APK
           path: MadinaMushafAnnotator/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          retention-days: 30
