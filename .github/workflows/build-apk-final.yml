@@ -1,0 +1,59 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle 8.10.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Unpack Android project
+        run: rm -rf MadinaMushafAnnotator && unzip -q -o MadinaMushafAnnotator-v0.2.1-cloud-build.zip
+
+      - name: Enable AndroidX
+        run: printf 'android.useAndroidX=true\nkotlin.code.style=official\norg.gradle.jvmargs=-Xmx3072m -Dfile.encoding=UTF-8\n' > MadinaMushafAnnotator/gradle.properties
+
+      - name: Fix Kotlin compile errors
+        run: |
+          FILE="MadinaMushafAnnotator/app/src/main/java/com/sherif/mushaf/MainActivity.kt"
+          grep -q 'import androidx.activity.compose.setContent' "$FILE" || sed -i '/import androidx.activity.ComponentActivity/a import androidx.activity.compose.setContent' "$FILE"
+          sed -i '/import androidx.compose.foundation.layout.weight/d' "$FILE"
+          sed -i 's/Spacer(Modifier.weight(1f))/Spacer(Modifier.width(24.dp))/g' "$FILE"
+
+      - name: Install Android SDK 35
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Build debug APK
+        working-directory: MadinaMushafAnnotator
+        run: gradle --no-daemon --stacktrace :app:assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Madina-Mushaf-APK
+          path: MadinaMushafAnnotator/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
